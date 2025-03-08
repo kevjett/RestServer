@@ -291,6 +291,9 @@ class RestServer {
 	}
 
 	protected function findUrl() {
+		if (!isset($this->map[$this->method])) {
+			return null;
+		}
 		$urls = $this->map[$this->method] ?? null;
 		if (!$urls) return null;
 
