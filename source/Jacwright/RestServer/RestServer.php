@@ -228,7 +228,6 @@ class RestServer {
 		}
 
 		$this->setStatus($statusCode);
-		$this->sendData(array('error' => array('code' => $statusCode, 'message' => $errorMessage)));
 	}
 
 	protected function instantiateClass($obj) {
@@ -517,7 +516,7 @@ class RestServer {
 		}
 
 		if ($this->format == RestFormat::HTML) {
-			if ($data !== null) {
+			if ($data !== null && is_string($data)) {
 				echo $data;
 			}
 		} else if ($this->format == RestFormat::XML) {
