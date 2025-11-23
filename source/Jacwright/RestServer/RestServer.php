@@ -44,6 +44,8 @@ use DOMDocument;
 class RestServer {
 	//@todo add type hint
 	public $url;
+	public $templateUrl;
+	public $paramMap;
 	public $method;
 	public $params;
 	public $format;
@@ -125,6 +127,8 @@ class RestServer {
 		$this->loggerHandler?->startRequest();
 
 		$this->url = $this->getPath();
+		$this->templateUrl = $this->url;
+		
 		$this->method = $this->getMethod();
 		$this->format = $this->getFormat();
 
@@ -312,6 +316,7 @@ class RestServer {
 
 			if (!strstr($url, '$')) {
 				if ($url == $this->url) {
+					$this->templateUrl = $url;
 					$params = array();
 					if (isset($args['data'])) {
 						$params += array_fill(0, $args['data'] + 1, null);
@@ -329,8 +334,9 @@ class RestServer {
 				$regex = preg_replace('/\\\\\$([\w\d]+)/', '(?P<$1>[^\/]+)', $regex);
 
 				if (preg_match(":^$regex$:", urldecode($this->url), $matches)) {
+					$this->templateUrl = $url;
+					$this->paramMap = array();
 					$params = array();
-					$paramMap = array();
 
 					if (isset($args['data'])) {
 						$params[$args['data']] = $this->data;
@@ -342,7 +348,7 @@ class RestServer {
 					foreach ($matches as $arg => $match) {
 						if (is_numeric($arg)) continue;
 
-						$paramMap[$arg] = $match;
+						$this->paramMap[$arg] = $match;
 
 						if (isset($args[$arg])) {
 							$params[$args[$arg]] = $match;
@@ -363,7 +369,7 @@ class RestServer {
 					ksort($params);
 
 					$call[2] = $params;
-					$call[3] = $paramMap;
+					$call[3] = $this->paramMap;
 
 					return $call;
 				}
@@ -534,7 +540,7 @@ class RestServer {
 			$this->setStatus($statusCode);
 		}
 
-		$this->loggerHandler?->endRequest($this->url, $this->params, $statusCode);
+		$this->loggerHandler?->endRequest($this->templateUrl, $this->paramMap, $statusCode);
 
 
 		if ($this->format == RestFormat::HTML) {
