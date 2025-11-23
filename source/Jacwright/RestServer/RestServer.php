@@ -53,6 +53,7 @@ class RestServer {
 	public $rootPath;
 	public $jsonAssoc = false;
 	public $authHandler = null;
+	public $loggerHandler = null;
 	public $defaultOutputFormat = RestFormat::JSON;
 
 	public $useCors = false;
@@ -105,6 +106,12 @@ class RestServer {
 		}
 	}
 
+	public function setLoggerHandler($loggerHandler) {
+		if ($loggerHandler instanceof RestLogger) {
+			$this->loggerHandler = $loggerHandler;
+		}
+	}
+
 	public function refreshCache() {
 		$this->map = array();
 		$this->cached = false;
@@ -115,6 +122,8 @@ class RestServer {
 	}
 
 	public function handle() {
+		$this->loggerHandler?->startRequest();
+
 		$this->url = $this->getPath();
 		$this->method = $this->getMethod();
 		$this->format = $this->getFormat();
@@ -214,6 +223,7 @@ class RestServer {
 				if ($reflection->hasMethod($method)) {
 					$obj = is_string($class) ? new $class() : $class;
 					$response = $obj->$method();
+					$this->loggerHandler?->endRequest($this->url, $this->params, $statusCode, $errorMessage);
 					if ($response) {
 						$this->setStatus($statusCode);
 						$this->sendData($response);
@@ -226,7 +236,8 @@ class RestServer {
 		if (!$errorMessage) {
 			$errorMessage = $this->codes[$statusCode];
 		}
-
+		
+		$this->loggerHandler?->endRequest($this->url, $this->params, $statusCode, $errorMessage);
 		$this->setStatus($statusCode);
 	}
 
@@ -514,6 +525,17 @@ class RestServer {
 		if ($this->useCors) {
 			$this->corsHeaders();
 		}
+
+		$statusCode = 200;
+
+		// ✅ Check if result has a statusCode() method
+		if (is_object($data) && method_exists($data, 'statusCode')) {
+			$statusCode = $data->statusCode();
+			$this->setStatus($statusCode);
+		}
+
+		$this->loggerHandler?->endRequest($this->url, $this->params, $statusCode);
+
 
 		if ($this->format == RestFormat::HTML) {
 			if ($data !== null && is_string($data)) {
