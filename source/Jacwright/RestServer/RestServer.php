@@ -165,11 +165,11 @@ class RestServer {
 
 				if (!$noAuth && !$this->isAuthorized($obj)) {
 					$data = $this->unauthorized($obj);
-					$this->sendData($data);
+					$this->sendData($data, 401);
 				} else {
 					$result = call_user_func_array(array($obj, $method), $params);
 
-					$this->sendData($result);
+					$this->sendData($result, 200);
 				}
 			} catch (RestException $e) {
 				$this->handleError($e->getCode(), $e->getMessage());
@@ -227,10 +227,10 @@ class RestServer {
 				if ($reflection->hasMethod($method)) {
 					$obj = is_string($class) ? new $class() : $class;
 					$response = $obj->$method();
-					$this->loggerHandler?->endRequest($this->url, $this->params, $statusCode, $errorMessage);
 					if ($response) {
-						$this->setStatus($statusCode);
-						$this->sendData($response);
+						$this->sendData($response, $statusCode);
+					} else {
+						$this->loggerHandler?->endRequest($this->url, $this->params, $statusCode, $errorMessage);
 					}
 					return;
 				}
@@ -519,7 +519,7 @@ class RestServer {
 	}
 
 
-	public function sendData($data) {
+	public function sendData($data, $statusCode = 200) {
 		if ($data == null && (!$this->format || $this->format == 'false')) {
 			return;
 		}
@@ -532,11 +532,11 @@ class RestServer {
 			$this->corsHeaders();
 		}
 
-		$statusCode = 200;
-
 		// ✅ Check if result has a statusCode() method
 		if (is_object($data) && method_exists($data, 'statusCode')) {
 			$statusCode = $data->statusCode();
+			$this->setStatus($statusCode);
+		} else {
 			$this->setStatus($statusCode);
 		}
 
